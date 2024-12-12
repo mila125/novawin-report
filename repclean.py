@@ -1,26 +1,23 @@
 import pandas as pd
 import os
+import numpy as np  # Para cálculos matemáticos como raíz cuadrada
 
 # Función para buscar el primer archivo .csv
 def encontrar_primer_csv(directorio):
-    # Recorrer el directorio y sus subdirectorios
     for archivo in os.listdir(directorio):
-        if archivo.endswith(".csv"):  # Verificar si el archivo tiene extensión .csv
+        if archivo.endswith(".csv"):
             return os.path.join(directorio, archivo)
-    return None  # Si no se encuentra ningún archivo .csv
+    return None
 
 # Solicitar la ruta al usuario
 path_csv = input("Por favor, ingresa la ruta donde están los reportes: ")
 
-# Validar que la ruta existe
 if not os.path.isdir(path_csv):
     print("La ruta ingresada no es válida.")
     exit()
 
-# Encontrar el primer archivo .csv
 file = encontrar_primer_csv(path_csv)
 
-# Verificar que se encontró un archivo
 if file is None:
     print("No se encontró ningún archivo con extensión .csv en el directorio.")
     exit()
@@ -32,17 +29,14 @@ except Exception as e:
     print(f"Error al leer el archivo {file}: {e}")
     exit()
 
-# Seleccionar solo las columnas necesarias
 columnas_necesarias = ["Relative Pressure", "Surf. Area"]
 
-# Verificar si las columnas existen en el DataFrame
 if not all(col in df.columns for col in columnas_necesarias):
     print("El archivo no contiene las columnas necesarias.")
     exit()
 
 df_filtrado = df[columnas_necesarias]
 
-# Solicitar al usuario el rango de valores para filtrar
 try:
     rango_min = float(input("Ingresa el valor mínimo del rango para 'Relative Pressure': "))
     rango_max = float(input("Ingresa el valor máximo del rango para 'Relative Pressure': "))
@@ -63,15 +57,33 @@ promedio_surf_area = df_filtrado_rango["Surf. Area"].mean()
 df_filtrado_rango["Promedio Surf. Area"] = None  # Inicializar la columna con valores vacíos
 df_filtrado_rango.at[0, "Promedio Surf. Area"] = promedio_surf_area  # Escribir el promedio solo en la primera fila
 
-# Generar un nombre para el archivo de salida
-output_file = os.path.join(path_csv, "limpio_filtrado_con_promedio_una_vez.csv")
+# Número de elementos (tamaño de la muestra)
+n = len(df_filtrado_rango)
 
-# Guardar el resultado en un nuevo archivo
+if n == 0:
+    print("No hay datos dentro del rango especificado.")
+    exit()
+
+# Calcular la desviación estándar individual y el error estándar
+df_filtrado_rango["Desviación Estándar Individual"] = np.sqrt(
+    (df_filtrado_rango["Surf. Area"] - promedio_surf_area) ** 2
+)
+
+df_filtrado_rango["Error Estándar Individual"] = (
+    df_filtrado_rango["Desviación Estándar Individual"] / np.sqrt(n)
+)
+
+# Agregar el promedio como una nueva columna
+#df_filtrado_rango["Promedio Surf. Area"] = promedio_surf_area
+
+# Guardar los resultados en un nuevo archivo CSV
+output_file = os.path.join(path_csv, "filtrado_con_desviacion_error_promedio.csv")
+
 try:
     df_filtrado_rango.to_csv(output_file, index=False)
-    print(f"Datos filtrados con el promedio escrito solo una vez en la columna guardados en: {output_file}")
+    print(f"Datos con promedio, desviación estándar y error estándar guardados en: {output_file}")
 except Exception as e:
-    print(f"Error al guardar el archivo filtrado: {e}")
+    print(f"Error al guardar el archivo: {e}")
 
 
 
