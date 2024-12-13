@@ -1,0 +1,20 @@
+Agregar final de file path a la ventana de trabajo sacar la busqueada por coordenadas . Hacer busqueada recursiva por todo el directorio
+
+sacar graficos de 
+Método HK 
+
+Graphs->HK->Volume
+File->Print toPDF "HK"
+Método DFT
+Graphs->DFT->DV(R) (Azul)
+File->Print toPDF "DFT"
+Método BJH
+Graphs->BJH->Absorption->DV(R) (Azul)
+Graphs->BJH->Desorption->DV(R) (Azul)
+File->Print toPDF "BJH"
+Método FHH (Fractal Dimention Methods)
+Graphs->FractalMethods->Absorption->FHH  Guardar como CSV sacar dos últimos números en un archivo aparte
+File->Print toPDF "FFH"
+Método NK (Fractal Dimention Methods)
+Graphs->FractalMethods->Absorption->NK  Guardar como CSV sacar dos últimos números en un archivo aparte
+File->Print toPDF "NK"
