@@ -1,179 +1,173 @@
+# -*- coding: utf-8 -*-
 from pywinauto import Application
 import time
 from datetime import datetime
 import os
 
-# Función para buscar el primer archivo .qps
+def limpiar_caracteres(texto):
+    """Eliminar caracteres no imprimibles de una cadena."""
+    return ''.join(c for c in texto if c.isprintable())
+
 def encontrar_primer_qps(directorio):
-    # Recorrer el directorio y sus subdirectorios
+    """Buscar el primer archivo con extensión .qps en el directorio."""
     for archivo in os.listdir(directorio):
-        # Verificar si el archivo tiene extensión .qps
         if archivo.endswith(".qps"):
-            # Retornar la ruta completa del primer archivo encontrado
             return os.path.join(directorio, archivo)
-    # Si no se encuentra ningún archivo .qps
     return None
 
-#En Python, puedes leer una cadena de texto desde el teclado utilizando la función input(). Aquí tienes un ejemplo básico:
+# Solicitar rutas al usuario
+path_qps = input("Por favor, ingresa ruta para extraer archivos: ").strip()
+path_csv = input("Por favor, ingresa ruta donde se van a guardar los reportes: ").strip()
+path_novawin = input("Por favor, ingresa ruta donde se encuentra NovaWin: ").strip()
 
-path_qps = input("Por favor, ingresa ruta para extraer archivos : ")
-
-path_csv = input("Por favor, ingresa ruta donde se van aguardar los reportes : ")
-
-path_novawin = input("Por favor, ingresa  donde se encuentra NovaWin : ")
+# Validar existencia de directorios y archivo ejecutable
+if not os.path.isdir(path_qps):
+    raise FileNotFoundError(f"La ruta especificada para los archivos .qps no existe: {path_qps}")
+if not os.path.isdir(path_csv):
+    raise FileNotFoundError(f"La ruta especificada para guardar los reportes no existe: {path_csv}")
+if not os.path.isfile(os.path.join(path_novawin, "NovaWin.exe")):
+    raise FileNotFoundError(f"No se encontró NovaWin.exe en la ruta especificada: {path_novawin}")
 
 # Ruta al ejecutable de NovaWin
-novawin_path = path_novawin+r"\NovaWin.exe"  #C:\Quantachrome Instruments\NovaWin\
-# Ruta del archivo que deseas abrir
+novawin_path = os.path.join(path_novawin, "NovaWin.exe")
 
-# Buscar el primer archivo .qps en el directorio
+# Buscar el primer archivo .qps
 file_to_open_nameonly = encontrar_primer_qps(path_qps)
+if not file_to_open_nameonly:
+    raise FileNotFoundError("No se encontró ningún archivo .qps en el directorio especificado.")
 
-if file_to_open_nameonly:
-    print(f"Se encontró el archivo .qps: {file_to_open_nameonly}")
-    # Aquí puedes abrir el archivo o continuar con el procesamiento
-else:
-    print("No se encontró ningún archivo .qps en el directorio especificado.")
-file_to_open = os.path.join(path_qps, file_to_open_nameonly)  # Esto genera la ruta completa correctamente #file_to_open =f"{path_qps}\\{file_to_open}"  #C:\Users\6lady\OneDrive\Escritorio\    path_qps+"\"file_to_open   
+# Generar la ruta completa del archivo a abrir
+file_to_open = limpiar_caracteres(file_to_open_nameonly)
 
-print(f"Asi se quedo file to open : {file_to_open}")
-# Ruta donde deseas exprortar los archivos planos
-# Obtener la fecha y hora actual
-ahora = datetime.now()
+print(f"Archivo .qps encontrado: {file_to_open}")
 
-# Convertir la fecha y hora a un string con un formato específico
-fecha_str = ahora.strftime("%Y%m%d_%H-%M-%S")  # Formato válido para nombres de archivo
+# Generar la ruta completa para el archivo exportado
+fecha_str = datetime.now().strftime("%Y%m%d_%H-%M-%S")
+exported_file_path = limpiar_caracteres(f"{path_csv}\\reporte_{fecha_str}.csv")
 
-print("Fecha actual:", fecha_str)
+print(f"Archivo exportado será guardado en: {exported_file_path}")
 
-# Concatenar la ruta, fecha/hora, y extensión del archivo
-exported_file_path = f"{path_csv}\\reporte_{fecha_str}.csv"
-
-print("Ruta completa del archivo a guardar:", exported_file_path)
-
-# Iniciar la aplicación
+# Iniciar la aplicación NovaWin
 app = Application(backend="uia").start(novawin_path)
 
 # Esperar a que la ventana principal se cargue
-time.sleep(5)  # Ajusta este tiempo según sea necesario
+time.sleep(5)
 
-# Conectar con la ventana principal de NovaWin
+# Conectar con la ventana principal
 main_window = app.window(title_re=".*NovaWin.*")
 
-# Navegar al menú 'Single Point Surface Area'
-# Esto dependerá del diseño de la aplicación. Asegúrate de identificar los controles.
-main_window.menu_select("File->Open")  #Tables->BET->Single Point Surface Area
+# Seleccionar la opción de menú para abrir archivo
+main_window.menu_select("File->Open")
 
-# Esperar a que se abra el diálogo de selección de archivo
+# Esperar a que aparezca el cuadro de diálogo
 time.sleep(2)
 
-# Conectar con el cuadro de diálogo de selección de archivo
-open_dialog = app.window(title_re=".*Abrir.*")
+# Interactuar con el cuadro de diálogo 'Abrir'
+open_dialog = app.window(class_name="#32770")
+if open_dialog.exists():
+    print("Cuadro de diálogo 'Abrir' localizado.")
 
-# Escribir la ruta del archivo
-open_dialog.Edit.type_keys(file_to_open, with_spaces=True)
-
-
-# Seleccionar el botón específico usando índices
-open_button = open_dialog.child_window(title="Abrir", control_type="Button", found_index=3)
-open_button.click_input()
-
-# Confirmar que el archivo se abre correctamente
-print("Archivo abierto exitosamente en NovaWin.")
-# Realizar la acción para guardar como .csv
-
-# Buscar la ventana por su título
-secondary_window = app.window(title_re=f".*Quantachrome™ NovaWin - [graph:Isotherm :   Linear: {file_to_open_nameonly}].*")
-
-# Verificar si la ventana está visible
-if main_window.exists():
-    main_window.set_focus()
+    open_dialog.wait("exists ready", timeout=10)
     
-    # Imprimir controles para verificar la jerarquía
-    main_window.print_control_identifiers()
+    # Buscar el control de tipo 'Edit' para escribir la ruta del archivo
+    edit_box = open_dialog.child_window(class_name="Edit")
+    if edit_box.exists():
+        edit_box.set_edit_text(file_to_open)
+        print(f"Ruta del archivo escrita en el cuadro de texto: {file_to_open}")
+    else:
+        raise Exception("No se pudo localizar el control Edit para ingresar la ruta del archivo.")
 
-    # Realizar clic derecho
-    main_window.right_click_input(coords=(658, 331))  # Ajusta las coordenadas según sea necesario
+    # Obtener todos los controles del cuadro de diálogo
+    all_controls = open_dialog.children()
+
+    # Imprimir detalles de todos los controles
+    for i, control in enumerate(all_controls):
+        try:
+           control_type = control.control_type() if hasattr(control, 'control_type') else 'N/A'
+           control_text = control.window_text()
+           print(f"Control {i}: {control_text} - Tipo: {control_type}")
+        except Exception as e:
+           print(f"Error al procesar control {i}: {e}")
+
+    # Seleccionar el botón específico usando índices
+    open_button = open_dialog.child_window( class_name="Button",found_index=0) 
+    open_button.click_input()
     
-    # Esperar un segundo para que aparezca el menú
+else:
+    raise Exception("No se pudo localizar el cuadro de diálogo 'Abrir'.")
+
+# Continuar con la selección de menús y exportación de datos
+try:
+    # Imprimir detalles de los controles y ventanas hijas de main_window
+    all_controls = main_window.children()
+  
+    # Buscar el control por su clase
+    graph_view_window = main_window.child_window(class_name="TGraphViewWindow")
+
+    # Verificar si se ha encontrado el control
+    if graph_view_window.exists():
+      print("Componente 'TGraphViewWindow' encontrado.")
+      graph_view_window.print_control_identifiers()  # Imprime los identificadores del control
+      # Realizar un clic derecho sobre el componente
+      graph_view_window.right_click_input()
+      time.sleep(1)
+    else:
+      print("No se encontró el componente 'TGraphViewWindow'.")
+    # Imprimir los controles y sus propiedades
+
+    context_menu = app.window(title_re=".*Context.*")
+    tables_menu_item = context_menu.child_window(title="Tables", control_type="MenuItem")
+    tables_menu_item.click_input()
+    print("Menú 'Tables' seleccionado.")
+
+    bet_menu_item = app.window(best_match="Tables").child_window(title="BET", control_type="MenuItem")
+    bet_menu_item.click_input()
+    print("Submenú 'BET' seleccionado.")
+    # Seleccionar "Single Point Surface Area"
+    bet_menu_item = app.window(best_match="BET")
+    bet_menu_item.print_control_identifiers(depth=2)  # Aumenta el nivel de profundidad si es necesario
+        
+    single_point_menu_item = bet_menu_item.child_window(title="Single Point Surface Area", control_type="MenuItem")
+    single_point_menu_item.click_input()
+
+    print("Se seleccionó 'Single Point Surface Area' exitosamente.")
+
+    time.sleep(2)
+    
+    secondary_window2 = app.window(title_re=f".*tab:Single Point Surface Area: file_to_open_nameonly.*")
+    main_window.right_click_input()  # Click derecho en la ventana de reporte
     time.sleep(1)
 
-    # Buscar el menú contextual y el item "Tables"
-    try:
-        context_menu = app.window(title_re=".*Context.*")  # Modificar título si es necesario
-        tables_menu_item = context_menu.child_window(title="Tables", control_type="MenuItem")
-        tables_menu_item.click_input()
-        print("Se seleccionó el menú 'Tables'.")
-        # Enumerar subitems del menú "Tables"
-        
-        #tables_menu_item.print_control_identifiers()  # Ayuda a identificar "BET"
-        #main_window.print_control_identifiers(depth=2)  # Ajusta la profundidad si es necesario
+    # Buscar el item "Export to .CSV" dentro del menú
+    savecsv_menu_item = context_menu.child_window(title="Export to .CSV", control_type="MenuItem")
+    savecsv_menu_item.click_input()
+    print("Se seleccionó 'Export to .CSV' exitosamente.")
 
-        app_top_window = app.window(best_match="Tables")  # Reemplaza "Tables" si es necesario
-        app_top_window.print_control_identifiers()
-
- 
-        time.sleep(1)
-        # Expandir el submenú "BET"
-        bet_menu_item = app_top_window.child_window(title="BET", control_type="MenuItem")
-        bet_menu_item.click_input()
-        print("Se seleccionó 'BET' exitosamente.")
-        time.sleep(1)
-
-        # Seleccionar "Single Point Surface Area"
-        bet_menu_item = app.window(best_match="BET")
-        bet_menu_item.print_control_identifiers(depth=2)  # Aumenta el nivel de profundidad si es necesario
-        
-        single_point_menu_item = bet_menu_item.child_window(title="Single Point Surface Area", control_type="MenuItem")
-        single_point_menu_item.click_input()
-
-        print("Se seleccionó 'Single Point Surface Area' exitosamente.")
-        secondary_window2 = app.window(title_re=f".*tab:Single Point Surface Area: file_to_open_nameonly.*")
-        main_window.right_click_input()  # Click derecho en la ventana de reporte
-        time.sleep(1)
-
-        # Buscar el menú contextual y el item "Export to .CSV"
-       
-        context_menu.print_control_identifiers()  # Verificar qué controles hay en el menú contextual
-
-        # Buscar el item "Export to .CSV" dentro del menú
-        savecsv_menu_item = context_menu.child_window(title="Export to .CSV", control_type="MenuItem")
-        savecsv_menu_item.click_input()
-        print("Se seleccionó 'Export to .CSV' exitosamente.")
-
-        time.sleep(2)  # Ajusta según sea necesario
-
-        # Verificar todas las ventanas activas
-        for window in app.windows():
-          print(window)
-          print(window.window_text())
-
-        # Intentar conectar con el diálogo de guardar
-        csv_dialog = app.window(title_re=".*Name  File.*")
-        csv_dialog.wait('visible', timeout=10)  # Esperar hasta que sea visible
-        csv_dialog.print_control_identifiers()
-
-        # Localizar el campo de texto dentro del ComboBox
-        edit_box = csv_dialog.child_window(auto_id="1148", control_type="Edit")
-
-
-        # Escribir la ruta del archivo
-        edit_box.type_keys(exported_file_path, with_spaces=True)
-
-        # Escribir la ruta del archivo
-        csv_dialog.Edit.type_keys(exported_file_path, with_spaces=True) #save_dialog
-
-        # Buscar el botón Guardar
-        csv_button = csv_dialog.child_window(title="Guardar", control_type="Button")
-        csv_button.click_input()
-        print("Archivo exportado exitosamente.")
-
-  
-        
-    except Exception as e:
-       print("Error al seleccionar:", e)
-
-else:
-    print(f"La ventana '.*Quantachrome™ NovaWin - [graph:Isotherm :   Linear: {file_to_open_nameonly}].*")
-
+    time.sleep(2)  # Ajusta según sea necesario
     
+    csv_dialog = app.window(class_name="#32770")
+    #csv_dialog.wait('visible', timeout=10)  # Esperar hasta que sea visible
+
+    print("llego hasta aqui")
+    edit_box = csv_dialog.child_window( control_type="Edit",found_index=0) #auto_id="1148"
+    if edit_box.exists():
+        print("Existe el dialogo de texto")
+        edit_box.type_keys(exported_file_path, with_spaces=True)
+    else:
+       raise Exception("Campo de texto para la ruta no encontrado.")
+
+    # Intentar localizar el botón con título "Guardar" o "Save"
+    csv_button = csv_dialog.child_window(control_type="Button", title="Guardar") \
+    if csv_dialog.child_window(control_type="Button", title="Guardar").exists() \
+    else csv_dialog.child_window(control_type="Button", title="Save")
+    if csv_button.exists():
+      print("Existe el boton")
+      csv_button.click_input()
+    else:
+       raise Exception("Botón 'Guardar' no encontrado.")
+       print("Archivo exportado exitosamente.")
+    
+except Exception as e:
+    print(f"Error durante la exportación: {str(e)}")
+    import traceback
+    traceback.print_exc()
