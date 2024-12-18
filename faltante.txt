@@ -1,0 +1,13 @@
+BJH 1 x
+    4  y absorbsion
+
+    1 x
+    4  y  desorbcion
+
+HK
+
+hacer menu principal
+
+cambiar nombre de ventana de acuerdo al idioma
+
+sacar referencia de coordinadas y id de proceso
