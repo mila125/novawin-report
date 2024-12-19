@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
-from pywinauto import Application
+from pywinauto import Application, findwindows
 import time
 from datetime import datetime
 import os
+import traceback
 
 def limpiar_caracteres(texto):
     """Eliminar caracteres no imprimibles de una cadena."""
@@ -15,92 +16,43 @@ def encontrar_primer_qps(directorio):
             return os.path.join(directorio, archivo)
     return None
 
-# Solicitar rutas al usuario
-path_qps = input("Por favor, ingresa ruta para extraer archivos: ").strip()
-path_csv = input("Por favor, ingresa ruta donde se van a guardar los reportes: ").strip()
-path_novawin = input("Por favor, ingresa ruta donde se encuentra NovaWin: ").strip()
+def inicializar_novawin(novawin_path):
+    """Inicia la aplicación NovaWin."""
+    try:
+        app = Application(backend="uia").start(novawin_path)
+        time.sleep(5)
+        main_window = app.window(title_re=".*NovaWin.*")
+        return app, main_window
+    except Exception as e:
+        print(f"Error al iniciar NovaWin: {e}")
+        raise
 
-# Validar existencia de directorios y archivo ejecutable
-if not os.path.isdir(path_qps):
-    raise FileNotFoundError(f"La ruta especificada para los archivos .qps no existe: {path_qps}")
-if not os.path.isdir(path_csv):
-    raise FileNotFoundError(f"La ruta especificada para guardar los reportes no existe: {path_csv}")
-if not os.path.isfile(os.path.join(path_novawin, "NovaWin.exe")):
-    raise FileNotFoundError(f"No se encontró NovaWin.exe en la ruta especificada: {path_novawin}")
+def seleccionar_menu(window, ruta_menu):
+    """Selecciona una opción de menú."""
+    try:
+        window.menu_select(ruta_menu)
+        time.sleep(2)
+    except Exception as e:
+        print(f"Error al seleccionar menú '{ruta_menu}': {e}")
+        raise
 
-# Ruta al ejecutable de NovaWin
-novawin_path = os.path.join(path_novawin, "NovaWin.exe")
+def interactuar_con_cuadro_dialogo(dialog, archivo):
+    """Interactúa con el cuadro de diálogo para abrir o guardar archivos."""
+    try:
+        edit_box = dialog.child_window(class_name="Edit")
+        edit_box.set_edit_text(archivo)
+        open_button = dialog.child_window(class_name="Button", found_index=0)
+        open_button.click_input()
+    except Exception as e:
+        print(f"Error al interactuar con el cuadro de diálogo: {e}")
+        raise
 
-# Buscar el primer archivo .qps
-file_to_open_nameonly = encontrar_primer_qps(path_qps)
-if not file_to_open_nameonly:
-    raise FileNotFoundError("No se encontró ningún archivo .qps en el directorio especificado.")
-
-# Generar la ruta completa del archivo a abrir
-file_to_open = limpiar_caracteres(file_to_open_nameonly)
-
-print(f"Archivo .qps encontrado: {file_to_open}")
-
-# Generar la ruta completa para el archivo exportado
-fecha_str = datetime.now().strftime("%Y%m%d_%H-%M-%S")
-exported_file_path = limpiar_caracteres(f"{path_csv}\\reporte_{fecha_str}.csv")
-
-print(f"Archivo exportado será guardado en: {exported_file_path}")
-
-# Iniciar la aplicación NovaWin
-app = Application(backend="uia").start(novawin_path)
-
-# Esperar a que la ventana principal se cargue
-time.sleep(5)
-
-# Conectar con la ventana principal
-main_window = app.window(title_re=".*NovaWin.*")
-
-# Seleccionar la opción de menú para abrir archivo
-main_window.menu_select("File->Open")
-
-# Esperar a que aparezca el cuadro de diálogo
-time.sleep(2)
-
-# Interactuar con el cuadro de diálogo 'Abrir'
-open_dialog = app.window(class_name="#32770")
-if open_dialog.exists():
-    print("Cuadro de diálogo 'Abrir' localizado.")
-
-    open_dialog.wait("exists ready", timeout=10)
-    
-    # Buscar el control de tipo 'Edit' para escribir la ruta del archivo
-    edit_box = open_dialog.child_window(class_name="Edit")
-    if edit_box.exists():
-        edit_box.set_edit_text(file_to_open)
-        print(f"Ruta del archivo escrita en el cuadro de texto: {file_to_open}")
-    else:
-        raise Exception("No se pudo localizar el control Edit para ingresar la ruta del archivo.")
-
-    # Obtener todos los controles del cuadro de diálogo
-    all_controls = open_dialog.children()
-
-    # Imprimir detalles de todos los controles
-    for i, control in enumerate(all_controls):
-        try:
-           control_type = control.control_type() if hasattr(control, 'control_type') else 'N/A'
-           control_text = control.window_text()
-           print(f"Control {i}: {control_text} - Tipo: {control_type}")
-        except Exception as e:
-           print(f"Error al procesar control {i}: {e}")
-
-    # Seleccionar el botón específico usando índices
-    open_button = open_dialog.child_window( class_name="Button",found_index=0) 
-    open_button.click_input()
-    
-else:
-    raise Exception("No se pudo localizar el cuadro de diálogo 'Abrir'.")
-
-# Continuar con la selección de menús y exportación de datos
-try:
+def exportar_reporte(main_window, ruta_exportacion,app):
+    # Continuar con la selección de menús y exportación de datos
+   try:
     # Imprimir detalles de los controles y ventanas hijas de main_window
     all_controls = main_window.children()
-  
+    main_window.print_control_identifiers()
     # Buscar el control por su clase
     graph_view_window = main_window.child_window(class_name="TGraphViewWindow")
 
@@ -123,6 +75,8 @@ try:
     bet_menu_item = app.window(best_match="Tables").child_window(title="BET", control_type="MenuItem")
     bet_menu_item.click_input()
     print("Submenú 'BET' seleccionado.")
+
+
     # Seleccionar "Single Point Surface Area"
     bet_menu_item = app.window(best_match="BET")
     bet_menu_item.print_control_identifiers(depth=2)  # Aumenta el nivel de profundidad si es necesario
@@ -167,7 +121,63 @@ try:
        raise Exception("Botón 'Guardar' no encontrado.")
        print("Archivo exportado exitosamente.")
     
-except Exception as e:
-    print(f"Error durante la exportación: {str(e)}")
-    import traceback
-    traceback.print_exc()
+    
+    
+    #"""Exporta el reporte desde NovaWin."""
+    #try:
+    #    main_window.right_click_input()
+    #    time.sleep(1)
+        
+        # Interactuar con menú contextual
+    #    context_menu = main_window.child_window(title_re=".*Context.*")
+    #    export_option = context_menu.child_window(title="Export to .CSV", control_type="MenuItem")
+    #    export_option.click_input()
+
+        # Guardar el archivo
+    #    csv_dialog = main_window.child_window(class_name="#32770")
+    #    interactuar_con_cuadro_dialogo(csv_dialog, ruta_exportacion)
+    #    print("Archivo exportado exitosamente.")
+   except Exception as e:
+        print(f"Error durante la exportación: {e}")
+        traceback.print_exc()
+
+# --- INICIO DEL SCRIPT ---
+def main(path_qps,path_csv,path_novawin):
+ try:
+     ## Solicitar rutas al usuario
+     #path_qps = input("Ruta para extraer archivos .qps: ").strip()
+     #path_csv = input("Ruta para guardar reportes: ").strip()
+     #path_novawin = input("Ruta de NovaWin: ").strip()
+ 
+     # Validar rutas
+    # if not os.path.isdir(path_qps):
+    #     raise FileNotFoundError(f"La ruta para archivos .qps no existe: {path_qps}")
+    #if not os.path.isdir(path_csv):
+    #    raise FileNotFoundError(f"La ruta para guardar reportes no existe: {path_csv}")
+     novawin_exe = os.path.join(path_novawin, "NovaWin.exe")
+     if not os.path.isfile(novawin_exe):
+         raise FileNotFoundError(f"No se encontró NovaWin.exe en: {path_novawin}")
+
+     # Buscar archivo .qps
+     archivo_qps = encontrar_primer_qps(path_qps)
+     if not archivo_qps:
+         raise FileNotFoundError("No se encontró ningún archivo .qps.")
+
+     #Generar ruta del reporte
+     timestamp = datetime.now().strftime("%Y%m%d_%H-%M-%S")
+     ruta_reporte = os.path.join(path_csv, f"reporte_{timestamp}.csv")
+
+     # Iniciar NovaWin
+     app, main_window = inicializar_novawin(novawin_exe)
+
+     # Abrir archivo .qps
+     seleccionar_menu(main_window, "File->Open")
+     dialog = app.window(class_name="#32770")
+     interactuar_con_cuadro_dialogo(dialog, archivo_qps)
+
+     # Exportar reporte
+     exportar_reporte(main_window, ruta_reporte,app)
+
+ except Exception as general_error:
+     print(f"Se produjo un error: {general_error}")
+     traceback.print_exc()
