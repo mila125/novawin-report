@@ -66,10 +66,13 @@ def obtener_rutas():
     main(ruta_qps, ruta_csv, ruta_novawin)
 
 # Crear ventana principal
+
 ventana = Tk()
 ventana.title("Selector de Rutas")
-ventana.geometry("600x300")
+ventana.geometry("900x300")
 
+# Deshabilitar redimensionamiento
+ventana.resizable(False, False)
 # Etiquetas y campos de entrada
 Label(ventana, text="Ruta de archivos .qps:").grid(row=0, column=0, padx=10, pady=10, sticky="w")
 entry_qps = Entry(ventana, width=50)
