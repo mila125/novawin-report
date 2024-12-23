@@ -1,26 +1,26 @@
-# -*- coding: utf-8 -*-
 from pywinauto import Application, findwindows
 import time
 from datetime import datetime
 import os
 import traceback
+from HK import hk_main  # Asegúrate de que el módulo HK esté disponible
+import threading
 
-def limpiar_caracteres(texto):
-    """Eliminar caracteres no imprimibles de una cadena."""
-    return ''.join(c for c in texto if c.isprintable())
+# Función para ejecutar hk_main en un hilo separado
+def ejecutar_hk_main_en_hilo(ruta_exportacion, ruta_pdf):
+    try:
+        print(f"Ejecutando hk_main con ruta_exportacion: {ruta_exportacion}, ruta_pdf: {ruta_pdf}")
+        hk_main(ruta_exportacion, ruta_pdf)
+        print("hk_main finalizado.")
+    except Exception as e:
+        print(f"Error en hk_main: {e}")
+        traceback.print_exc()
 
-def encontrar_primer_qps(directorio):
-    """Buscar el primer archivo con extensión .qps en el directorio."""
-    for archivo in os.listdir(directorio):
-        if archivo.endswith(".qps"):
-            return os.path.join(directorio, archivo)
-    return None
-
+# Inicializar NovaWin
 def inicializar_novawin(novawin_path):
-    """Inicia la aplicación NovaWin."""
     try:
         app = Application(backend="uia").start(novawin_path)
-        time.sleep(5)
+        time.sleep(5)  # Esperar a que se cargue la ventana principal
         main_window = app.window(title_re=".*NovaWin.*")
         return app, main_window
     except Exception as e:
@@ -129,36 +129,57 @@ def generar_nombre_unico(ruta):
 
     return ruta
 
+def manejar_novawin(path_novawin, archivo_qps, ruta_reporte):
+    """Lógica de NovaWin ejecutada en un hilo separado."""
+    try:
+        novawin_exe = os.path.join(path_novawin, "NovaWin.exe")
+        if not os.path.isfile(novawin_exe):
+            raise FileNotFoundError(f"No se encontró NovaWin.exe en: {path_novawin}")
 
-# --- INICIO DEL SCRIPT ---
-def main(path_qps,path_csv,path_novawin):
- try:
-     
-     novawin_exe = os.path.join(path_novawin, "NovaWin.exe")
-     if not os.path.isfile(novawin_exe):
-         raise FileNotFoundError(f"No se encontró NovaWin.exe en: {path_novawin}")
+        # Iniciar NovaWin
+        app, main_window = inicializar_novawin(novawin_exe)
 
-     # Buscar archivo .qps
-     archivo_qps = encontrar_primer_qps(path_qps)
-     if not archivo_qps:
-         raise FileNotFoundError("No se encontró ningún archivo .qps.")
-      
-     #Generar ruta del reporte
-     timestamp = datetime.now().strftime("%Y%m%d_%H-%M-%S")
-     ruta_reporte = os.path.join(path_csv, f"reporte_{timestamp}.csv")
-     print("La ruta de reporte es -> "+ruta_reporte)
-     # Iniciar NovaWin
-     app, main_window = inicializar_novawin(novawin_exe)
+        # Interactuar con NovaWin para abrir archivo y exportar reporte
+        seleccionar_menu(main_window, "File->Open")
+        dialog = app.window(class_name="#32770")
+        interactuar_con_cuadro_dialogo(dialog, archivo_qps)
 
-     # Abrir archivo .qps
-     seleccionar_menu(main_window, "File->Open")
-     print("Hola")
-     dialog = app.window(class_name="#32770")
-     interactuar_con_cuadro_dialogo(dialog, archivo_qps)
- 
-     # Exportar reporte
-     exportar_reporte(main_window, ruta_reporte,app)
+        # Exportar reporte
+        ruta_csv_generado = exportar_reporte(main_window, ruta_reporte, app)
 
- except Exception as general_error:
-     print(f"Se produjo un error: {general_error}")
-     traceback.print_exc()
+        print(f"Archivo exportado a: {ruta_csv_generado}")
+
+    except Exception as e:
+        print(f"Error al manejar NovaWin: {e}")
+        traceback.print_exc()
+
+def main(path_qps, path_csv, path_novawin, ruta_pdf):
+    try:
+        # Buscar archivo .qps
+        archivo_qps = next((os.path.join(path_qps, f) for f in os.listdir(path_qps) if f.endswith(".qps")), None)
+        if not archivo_qps:
+            raise FileNotFoundError("No se encontró ningún archivo .qps.")
+
+        # Generar ruta del reporte
+        timestamp = datetime.now().strftime("%Y%m%d_%H-%M-%S")
+        ruta_reporte = os.path.join(path_csv, f"reporte_{timestamp}.csv")
+
+        # Ejecutar NovaWin en un hilo separado
+        hilo_novawin = threading.Thread(target=manejar_novawin, args=(path_novawin, archivo_qps, ruta_reporte))
+        hilo_novawin.daemon = True  # Finaliza el hilo cuando el programa principal termina
+        hilo_novawin.start()
+
+        # Ejecutar hk_main en un hilo separado
+        hilo_hk_main = threading.Thread(target=ejecutar_hk_main_en_hilo, args=(ruta_reporte, ruta_pdf))
+        hilo_hk_main.daemon = True
+        hilo_hk_main.start()
+
+        print("Tareas de NovaWin y hk_main iniciadas en hilos separados.")
+
+        # Esperar a que los hilos finalicen si es necesario (opcional)
+        hilo_novawin.join()
+        hilo_hk_main.join()
+
+    except Exception as general_error:
+        print(f"Se produjo un error: {general_error}")
+        traceback.print_exc()
