@@ -3,7 +3,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def main(file_path,output_pdf_path):
+def bjhd_main(file_path,output_pdf_path):
+ print("Hola desde BJHD:main")
  try:
      # Leer el archivo exportado
      if file_path.endswith('.csv'):

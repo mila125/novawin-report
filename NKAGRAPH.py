@@ -1,7 +1,8 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 
-def main(file_path,output_pdf_path):
+def nkagraph_main(file_path,output_pdf_path):
+ print("Hola desde NKAGRAPH:main")
  try:
      # Leer los datos desde el archivo CSV
      datos = pd.read_csv(ruta_csv)

@@ -4,6 +4,7 @@ from datetime import datetime
 import os
 import traceback
 from HK import hk_main  # Asegúrate de que el módulo HK esté disponible
+from DFT import dft_main  # Asegúrate de que el módulo DFT esté disponible
 import threading
 
 
@@ -158,8 +159,18 @@ def manejar_novawin(evento, path_novawin, archivo_qps, ruta_reporte):
     except Exception as e:
         print(f"Error al manejar NovaWin: {e}")
         traceback.print_exc()
-
-def main(path_qps, path_csv, path_novawin, ruta_pdf):
+def ejecutar_dft_en_hilo(ruta_reporte, ruta_pdf, evento):
+    try:
+        # Esperar a que el evento sea señalado
+        print("Esperando a que se complete la exportación...")
+        evento.wait()  # Bloquea hasta que el evento sea activado
+        print(f"Ejecutando hk_main con ruta_exportacion: {ruta_exportacion}, ruta_pdf: {ruta_pdf}")
+        dft_main(ruta_exportacion, ruta_pdf)
+        print("dft_main finalizado.")
+    except Exception as e:
+        print(f"Error en dft_main: {e}")
+        traceback.print_exc()
+def main(path_qps, path_csv, path_novawin):
     try:
         # Buscar archivo .qps
         archivo_qps = next((os.path.join(path_qps, f) for f in os.listdir(path_qps) if f.endswith(".qps")), None)
@@ -189,11 +200,22 @@ def main(path_qps, path_csv, path_novawin, ruta_pdf):
         hilo_hk_main.daemon = True
         hilo_hk_main.start()
 
-        print("Tareas de NovaWin y hk_main iniciadas en hilos separados.")
 
-        # Opcional: esperar a que ambos hilos terminen
+        # Ejecutar dft_main en otro hilo, pero solo después del evento
+        hilo_dft = threading.Thread(
+            target=ejecutar_dft_en_hilo,
+            args=(ruta_reporte, ruta_pdf, evento_csv_generado)
+        )
+        hilo_dft.daemon = True
+        hilo_dft.start()
+
+        print("Tareas de NovaWin, hk_main y dft_main iniciadas en hilos separados.")
+
+        # Opcional: esperar a que todos los hilos terminen
         hilo_novawin.join()
         hilo_hk_main.join()
+        hilo_dft.join()
+
 
     except Exception as general_error:
         print(f"Se produjo un error: {general_error}")

@@ -3,7 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def main(file_path,output_pdf_path):
+def bjha_main(file_path,output_pdf_path):
+ print("Hola desde BJHA:main")
  try:
      # Leer el archivo CSV
      data = pd.read_csv(file_path)

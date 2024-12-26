@@ -1,7 +1,8 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-def main(file_path,output_pdf_path):
+def ffhagraph_main(file_path,output_pdf_path):
+ print("Hola desde FFHAGRAPH:main")
  try:
      # Cargar los datos desde el archivo CSV
      data = pd.read_csv(input_file)

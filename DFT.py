@@ -2,7 +2,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-def main(file_path,output_pdf_path):
+def dft_main(file_path,output_pdf_path):
+ print("Hola desde DFT:main")
  try:
      # Leer el archivo con datos
      if file_path.endswith('.csv'):
