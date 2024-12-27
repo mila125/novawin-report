@@ -15,6 +15,34 @@ ruta_qps = "s"
 ruta_csv = "s"
 ruta_pdf = "s"
 ruta_novawin = "s"
+def seleccionar_archivo_csv():
+    # Comprueba si el campo de texto tiene contenido
+    if entry_csv.get():  # Si no está vacío
+        entry_csv.delete(0, END)  # Borra el contenido del campo
+    else:
+        print("El campo de texto está vacío.")
+    seleccionar_archivo(entry_csv)
+def seleccionar_archivo_qps():
+    # Comprueba si el campo de texto tiene contenido
+    if entry_qps.get():  # Si no está vacío
+        entry_qps.delete(0, END)  # Borra el contenido del campo
+    else:
+        print("El campo de texto está vacío.")
+    seleccionar_archivo(entry_qps)
+def seleccionar_archivo_novawin():
+    # Comprueba si el campo de texto tiene contenido
+    if entry_novawin.get():  # Si no está vacío
+        entry_novawin.delete(0, END)  # Borra el contenido del campo
+    else:
+        print("El campo de texto está vacío.")    
+    seleccionar_archivo(entry_novawin)
+def seleccionar_archivo_pdf():
+    # Comprueba si el campo de texto tiene contenido
+    if entry_archivo_pdf.get():  # Si no está vacío
+        entry_archivo_pdf.delete(0, END)  # Borra el contenido del campo
+    else:
+        print("El campo de texto está vacío.")   
+    seleccionar_archivo(entry_pdf)
 def seleccionar_archivo(entry):
  filename = filedialog.askopenfilename(
      parent=ventana,
@@ -193,21 +221,22 @@ Label(ventana, text="Ruta de archivos .qps:").grid(row=0, column=0, padx=10, pad
 entry_qps = Entry(ventana, width=50)
 entry_qps.grid(row=0, column=1, padx=10, pady=10)
 # Botón para seleccionar archivo
-Button(ventana, text="Seleccionar Archivo", command=seleccionar_archivo(entry_qps)).grid(row=0, column=2, padx=10, pady=10)
+Button(ventana, text="Seleccionar Archivo", command=seleccionar_archivo_qps).grid(row=0, column=2, padx=10, pady=10)
 
 
 Label(ventana, text="Ruta para guardar reportes:").grid(row=1, column=0, padx=10, pady=10, sticky="w")
 entry_csv = Entry(ventana, width=50)
 entry_csv.grid(row=1, column=1, padx=10, pady=10)
-Button(ventana, text="Seleccionar Archivo", command=seleccionar_archivo(entry_csv)).grid(row=1, column=2, padx=10, pady=10)
+
+Button(ventana, text="Seleccionar Archivo", command=seleccionar_archivo_csv).grid(row=1, column=2, padx=10, pady=10)
 Label(ventana, text="Ruta de NovaWin:").grid(row=2, column=0, padx=10, pady=10, sticky="w")
 entry_novawin = Entry(ventana, width=50)
 entry_novawin.grid(row=2, column=1, padx=10, pady=10)
-Button(ventana, text="Seleccionar Archivo", command=seleccionar_archivo(entry_novawin)).grid(row=2, column=2, padx=10, pady=10)
+Button(ventana, text="Seleccionar Archivo", command=seleccionar_archivo_novawin).grid(row=2, column=2, padx=10, pady=10)
 Label(ventana, text="Ruta para guardar PDFs:").grid(row=3, column=0, padx=10, pady=10, sticky="w")
 entry_pdf = Entry(ventana, width=50)
 entry_pdf.grid(row=3, column=1, padx=10, pady=10)
-Button(ventana, text="Seleccionar Archivo", command=seleccionar_archivo(entry_pd)).grid(row=3, column=2, padx=10, pady=10)
+Button(ventana, text="Seleccionar Archivo", command=seleccionar_archivo_pdf).grid(row=3, column=2, padx=10, pady=10)
 
 
 # Botón para confirmar rutas
@@ -221,24 +250,25 @@ Button(ventana, text="Ejecutar DFT", command=obtener_rutas_dft).grid(row=9, colu
 
 # Botón para ejecutar bjha
 Button(ventana, text="Ejecutar BJHA", command=obtener_rutas_bjha).grid(row=10, column=1, pady=10)
-
+ 
 # Botón para ejecutar bjhd
 Button(ventana, text="Ejecutar BJHD", command=obtener_rutas_bjhd).grid(row=11, column=1, pady=10)
-
+ 
 # Botón para ejecutar ffhagraph
 Button(ventana, text="Ejecutar FFHAGRAPH", command=obtener_rutas_ffhagraph).grid(row=12, column=1, pady=10)
-
+ 
 # Botón para ejecutar nkagraph
 Button(ventana, text="Ejecutar NKAGRAPH", command=obtener_rutas_nkagraph).grid(row=13, column=1, pady=10)
-
+ 
 # Botón para ejecutar novawin
 Button(ventana, text="Ejecutar NovaWin", command=obtener_rutas_novawin).grid(row=14, column=1, pady=10)
-
-
-
-
+ 
+ 
+ 
+ 
 # Cargar configuración existente si está disponible
 cargar_configuracion()
 
 # Ejecutar bucle principal
 ventana.mainloop()
+main_ide()

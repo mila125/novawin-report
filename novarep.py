@@ -6,8 +6,67 @@ import traceback
 from HK import hk_main  # Asegúrate de que el módulo HK esté disponible
 from DFT import dft_main  # Asegúrate de que el módulo DFT esté disponible
 import threading
+import subprocess
+import pandas as pd
+import configparser
+def guardar_dataframe_en_ini(df, archivo_ini):
+    """
+    Guarda un DataFrame en formato .ini.
+    
+    Args:
+        df (pd.DataFrame): DataFrame a guardar.
+        archivo_ini (str): Ruta del archivo .ini de destino.
+    """
+    config = configparser.ConfigParser()
+    
+    for columna in df.columns:
+        # Crear una sección para cada columna
+        config[columna] = {}
+        for i, valor in enumerate(df[columna]):
+            # Agregar cada fila como un par clave-valor
+            config[columna][f"fila_{i}"] = str(valor)
+    
+    with open(archivo_ini, 'w') as archivo:
+        config.write(archivo)
+    print(f"DataFrame guardado exitosamente en {archivo_ini}")
+def leer_csv_y_crear_dataframe(ruta_csv):
+    """
+    Lee un archivo CSV y lo convierte en un DataFrame de pandas.
 
+    Args:
+        ruta_csv (str): Ruta al archivo CSV.
 
+    Returns:
+        pd.DataFrame: DataFrame creado a partir del CSV.
+    """
+    try:
+        # Leer el archivo CSV
+        df = pd.read_csv(ruta_csv)
+        print("DataFrame creado exitosamente.")
+        return df
+    except FileNotFoundError:
+        print(f"Error: El archivo {ruta_csv} no existe.")
+    except Exception as e:
+        print(f"Error al leer el archivo CSV: {e}"
+def cerrar_novawin(app):
+    """Cerrar la aplicación NovaWin."""
+    try:
+        app.kill()  # Mata el proceso de NovaWin
+        print("NovaWin cerrado exitosamente.")
+    except Exception as e:
+        print(f"Error al cerrar NovaWin: {e}")
+        raise
+
+def crear_ventana_novarep_ide():
+    """Simula la creación de la ventana principal de novarep_ide."""
+    try:
+        print("Recreando ventana novarep_ide...")
+        # Aquí deberías colocar el código para inicializar o mostrar novarep_ide
+        # Por ejemplo: app_novarep = Application(backend="uia").start(path_novarep)
+        # print("Ventana novarep_ide creada.")
+    except Exception as e:
+        print(f"Error al crear la ventana novarep_ide: {e}")
+        raise
 # Inicializar NovaWin
 def inicializar_novawin(novawin_path):
     try:
@@ -103,45 +162,17 @@ def exportar_reporte(main_window, ruta_exportacion, app):
         else:
             raise Exception("Botón 'Guardar' no encontrado.")
 
+
     except Exception as e:
         print(f"Error durante la exportación: {e}")
         traceback.print_exc()
 
-def generar_nombre_unico(ruta):
-    """
-    Genera un nombre único para el archivo añadiendo un índice si ya existe un archivo con el mismo nombre.
-    """
-    directorio, nombre_archivo = os.path.split(ruta)
-    nombre, extension = os.path.splitext(nombre_archivo)
-    indice = 1
-
-    while os.path.exists(ruta):
-        ruta = os.path.join(directorio, f"{nombre}_{indice}{extension}")
-        indice += 1
-
-    return ruta
-
-def ejecutar_hk_main_en_hilo(ruta_exportacion, ruta_pdf, evento):
-    try:
-        # Esperar a que el evento sea señalado
-        print("Esperando a que se complete la exportación...")
-        evento.wait()  # Bloquea hasta que el evento sea activado
-        print(f"Ejecutando hk_main con ruta_exportacion: {ruta_exportacion}, ruta_pdf: {ruta_pdf}")
-        hk_main(ruta_exportacion, ruta_pdf)
-        print("hk_main finalizado.")
-    except Exception as e:
-        print(f"Error en hk_main: {e}")
-        traceback.print_exc()
-
 # Lógica de NovaWin, con exportación que señala el evento
-def manejar_novawin(evento, path_novawin, archivo_qps, ruta_reporte):
+def manejar_novawin( path_novawin, archivo_qps, path_csv):
     try:
-        novawin_exe = os.path.join(path_novawin, "NovaWin.exe")
-        if not os.path.isfile(novawin_exe):
-            raise FileNotFoundError(f"No se encontró NovaWin.exe en: {path_novawin}")
 
         # Iniciar NovaWin
-        app, main_window = inicializar_novawin(novawin_exe)
+        app,main_window = inicializar_novawin(path_novawin)
 
         # Interactuar con NovaWin para abrir archivo y exportar reporte
         seleccionar_menu(main_window, "File->Open")
@@ -149,74 +180,38 @@ def manejar_novawin(evento, path_novawin, archivo_qps, ruta_reporte):
         interactuar_con_cuadro_dialogo(dialog, archivo_qps)
 
         # Exportar reporte
-        exportar_reporte(main_window, ruta_reporte, app)
+        exportar_reporte(main_window, path_csv, app)
 
-        print(f"Archivo exportado a: {ruta_reporte}")
+        print(f"Archivo exportado a: {path_csv}")
 
-        # Señalizar que el archivo está listo
-        evento.set()  # Activar el evento para indicar que la exportación ha terminado
 
     except Exception as e:
         print(f"Error al manejar NovaWin: {e}")
         traceback.print_exc()
-def ejecutar_dft_en_hilo(ruta_reporte, ruta_pdf, evento):
-    try:
-        # Esperar a que el evento sea señalado
-        print("Esperando a que se complete la exportación...")
-        evento.wait()  # Bloquea hasta que el evento sea activado
-        print(f"Ejecutando hk_main con ruta_exportacion: {ruta_exportacion}, ruta_pdf: {ruta_pdf}")
-        dft_main(ruta_exportacion, ruta_pdf)
-        print("dft_main finalizado.")
-    except Exception as e:
-        print(f"Error en dft_main: {e}")
-        traceback.print_exc()
+
 def main(path_qps, path_csv, path_novawin):
+    print("Hola desde novarep:main")
+    print(path_qps)
     try:
-        # Buscar archivo .qps
-        archivo_qps = next((os.path.join(path_qps, f) for f in os.listdir(path_qps) if f.endswith(".qps")), None)
-        if not archivo_qps:
-            raise FileNotFoundError("No se encontró ningún archivo .qps.")
-
-        # Generar ruta del reporte
-        timestamp = datetime.now().strftime("%Y%m%d_%H-%M-%S")
-        ruta_reporte = os.path.join(path_csv, f"reporte_{timestamp}.csv")
-
-        # Crear un evento de sincronización
-        evento_csv_generado = threading.Event()
-
+  
         # Ejecutar NovaWin en un hilo
         hilo_novawin = threading.Thread(
             target=manejar_novawin,
-            args=(evento_csv_generado, path_novawin, archivo_qps, ruta_reporte)
+            args=( path_novawin, path_qps, path_csv)
         )
         hilo_novawin.daemon = True
         hilo_novawin.start()
 
-        # Ejecutar hk_main en otro hilo, pero solo después del evento
-        hilo_hk_main = threading.Thread(
-            target=ejecutar_hk_main_en_hilo,
-            args=(ruta_reporte, ruta_pdf, evento_csv_generado)
-        )
-        hilo_hk_main.daemon = True
-        hilo_hk_main.start()
-
-
-        # Ejecutar dft_main en otro hilo, pero solo después del evento
-        hilo_dft = threading.Thread(
-            target=ejecutar_dft_en_hilo,
-            args=(ruta_reporte, ruta_pdf, evento_csv_generado)
-        )
-        hilo_dft.daemon = True
-        hilo_dft.start()
-
-        print("Tareas de NovaWin, hk_main y dft_main iniciadas en hilos separados.")
-
         # Opcional: esperar a que todos los hilos terminen
         hilo_novawin.join()
-        hilo_hk_main.join()
-        hilo_dft.join()
-
-
+        # Crear DataFrame a partir del archivo exportado
+        dataframe = leer_csv_y_crear_dataframe(path_csv)
+        print(dataframe.head())  # Imprime las primeras filas para verificar
+        guardar_dataframe_en_ini(dataframe, "dataframe.ini")
+        # Cerrar NovaWin
+        df.to_excel("reporte.xlsx", index=False, engine='openpyxl')
+        cerrar_novawin(app)
+        subprocess.run(["python", "novarep_ide.py"])
     except Exception as general_error:
         print(f"Se produjo un error: {general_error}")
         traceback.print_exc()
