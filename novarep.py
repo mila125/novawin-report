@@ -9,6 +9,21 @@ import threading
 import subprocess
 import pandas as pd
 import configparser
+def generar_nombre_unico(ruta):
+    """
+    Genera un nombre único para el archivo añadiendo un índice si ya existe un archivo con el mismo nombre.
+    """
+    directorio, nombre_archivo = os.path.split(ruta)
+    nombre, extension = os.path.splitext(nombre_archivo)
+    indice = 1
+
+    while os.path.exists(ruta):
+        ruta = os.path.join(directorio, f"{nombre}_{indice}{extension}")
+        indice += 1
+
+    return ruta
+
+
 def guardar_dataframe_en_ini(df, archivo_ini):
     """
     Guarda un DataFrame en formato .ini.
@@ -47,7 +62,7 @@ def leer_csv_y_crear_dataframe(ruta_csv):
     except FileNotFoundError:
         print(f"Error: El archivo {ruta_csv} no existe.")
     except Exception as e:
-        print(f"Error al leer el archivo CSV: {e}"
+        print(f"Error al leer el archivo CSV: {e}")
 def cerrar_novawin(app):
     """Cerrar la aplicación NovaWin."""
     try:
@@ -183,7 +198,14 @@ def manejar_novawin( path_novawin, archivo_qps, path_csv):
         exportar_reporte(main_window, path_csv, app)
 
         print(f"Archivo exportado a: {path_csv}")
-
+        
+        # Intentar cerrar la ventana principal de forma elegante
+        try:
+            main_window.close()
+            print("Ventana principal de NovaWin cerrada exitosamente.")
+        except Exception as e:
+            print(f"No se pudo cerrar la ventana principal de forma elegante: {e}. Intentando forzar el cierre.")
+            app.kill()  # Forzar el cierre del proceso de NovaWin
 
     except Exception as e:
         print(f"Error al manejar NovaWin: {e}")
@@ -204,13 +226,14 @@ def main(path_qps, path_csv, path_novawin):
 
         # Opcional: esperar a que todos los hilos terminen
         hilo_novawin.join()
+        
         # Crear DataFrame a partir del archivo exportado
         dataframe = leer_csv_y_crear_dataframe(path_csv)
         print(dataframe.head())  # Imprime las primeras filas para verificar
         guardar_dataframe_en_ini(dataframe, "dataframe.ini")
         # Cerrar NovaWin
-        df.to_excel("reporte.xlsx", index=False, engine='openpyxl')
-        cerrar_novawin(app)
+        dataframe.to_excel("reporte.xlsx", index=False, engine='openpyxl')
+        
         subprocess.run(["python", "novarep_ide.py"])
     except Exception as general_error:
         print(f"Se produjo un error: {general_error}")

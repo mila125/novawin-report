@@ -1,7 +1,6 @@
 from tkinter import Tk, Label, Button, Entry, filedialog
 import configparser
 import os
-import threading
 from novarep import main
 from HK import hk_main
 from DFT import dft_main
@@ -15,6 +14,7 @@ ruta_qps = "s"
 ruta_csv = "s"
 ruta_pdf = "s"
 ruta_novawin = "s"
+
 def seleccionar_archivo_csv():
     # Comprueba si el campo de texto tiene contenido
     if entry_csv.get():  # Si no está vacío
@@ -93,6 +93,7 @@ def seleccionar_carpeta(entry):
         entry.insert(0, ruta_carpeta)
         
 def obtener_rutas_hk():
+    ruta_ini = "dataframe.ini"
     ruta_qps = entry_qps.get()
     ruta_csv = entry_csv.get()
     ruta_novawin = entry_novawin.get()
@@ -104,8 +105,10 @@ def obtener_rutas_hk():
     ventana.quit()
     ventana.destroy()
 
-    hk_main("a","b")
+    hk_main(ruta_qps, ruta_csv,ruta_novawin)
+
 def obtener_rutas_dft():
+    ruta_ini = "dataframe.ini"
     ruta_qps = entry_qps.get()
     ruta_csv = entry_csv.get()
     ruta_novawin = entry_novawin.get()
@@ -116,8 +119,9 @@ def obtener_rutas_dft():
     print(ruta_novawin)
     ventana.quit()
     ventana.destroy()
-    dft_main("a","b")
+    dft_main(ruta_qps, ruta_csv,ruta_novawin)
 def obtener_rutas_bjha():
+    ruta_ini = "dataframe.ini"
     ruta_qps = entry_qps.get()
     ruta_csv = entry_csv.get()
     ruta_novawin = entry_novawin.get()
@@ -128,9 +132,10 @@ def obtener_rutas_bjha():
     print(ruta_novawin)
     ventana.quit()
     ventana.destroy()
-    bjha_main("a","b")
+    bjha_main(ruta_qps, ruta_csv,ruta_novawin)
     
 def obtener_rutas_bjhd():
+    ruta_ini = "dataframe.ini"
     ruta_qps = entry_qps.get()
     ruta_csv = entry_csv.get()
     ruta_novawin = entry_novawin.get()
@@ -141,9 +146,10 @@ def obtener_rutas_bjhd():
     print(ruta_novawin)
     ventana.quit()
     ventana.destroy()
-    bjhd_main("a","b")
+    bjhd_main(ruta_qps, ruta_csv,ruta_novawin)
     
 def obtener_rutas_ffhagraph():
+    ruta_ini = "dataframe.ini"
     ruta_qps = entry_qps.get()
     ruta_csv = entry_csv.get()
     ruta_novawin = entry_novawin.get()
@@ -154,9 +160,10 @@ def obtener_rutas_ffhagraph():
     print(ruta_novawin)
     ventana.quit()
     ventana.destroy()
-    ffhagraph_main("a","b")
+    ffhagraph_main(ruta_qps, ruta_csv,ruta_novawin)
     
 def obtener_rutas_nkagraph():
+    ruta_ini = "dataframe.ini"
     ruta_qps = entry_qps.get()
     ruta_csv = entry_csv.get()
     ruta_novawin = entry_novawin.get()
@@ -167,7 +174,7 @@ def obtener_rutas_nkagraph():
     print(ruta_novawin)
     ventana.quit()
     ventana.destroy()
-    nkagraph_main("a","b")
+    nkagraph_main(ruta_qps, ruta_csv,ruta_novawin)
     
 def obtener_rutas():
     """Recuperar las rutas ingresadas o seleccionadas por el usuario."""
@@ -204,6 +211,7 @@ def obtener_rutas_novawin():
     ventana.quit()
     ventana.destroy()
     print(ruta_qps)
+   
     main(ruta_qps, ruta_csv,ruta_novawin)
 
     
@@ -220,9 +228,9 @@ ventana.resizable(False, False)
 Label(ventana, text="Ruta de archivos .qps:").grid(row=0, column=0, padx=10, pady=10, sticky="w")
 entry_qps = Entry(ventana, width=50)
 entry_qps.grid(row=0, column=1, padx=10, pady=10)
+
 # Botón para seleccionar archivo
 Button(ventana, text="Seleccionar Archivo", command=seleccionar_archivo_qps).grid(row=0, column=2, padx=10, pady=10)
-
 
 Label(ventana, text="Ruta para guardar reportes:").grid(row=1, column=0, padx=10, pady=10, sticky="w")
 entry_csv = Entry(ventana, width=50)
@@ -271,4 +279,4 @@ cargar_configuracion()
 
 # Ejecutar bucle principal
 ventana.mainloop()
-main_ide()
+#main_ide()
