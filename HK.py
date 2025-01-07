@@ -1,107 +1,16 @@
+import openpyxl
+import os
+import csv
+import traceback
+from datetime import datetime
 from pywinauto import Application, findwindows
 import time
-from datetime import datetime
-import os
-import traceback
-import threading
-import subprocess
-import pandas as pd
-import configparser
-def generar_nombre_unico(ruta):
-    """
-    Genera un nombre único para el archivo añadiendo un índice si ya existe un archivo con el mismo nombre.
-    """
-    directorio, nombre_archivo = os.path.split(ruta)
-    nombre, extension = os.path.splitext(nombre_archivo)
-    indice = 1
+from novawinmng import manejar_novawin, leer_csv_y_crear_dataframe, guardar_dataframe_en_ini
 
-    while os.path.exists(ruta):
-        ruta = os.path.join(directorio, f"{nombre}_{indice}{extension}")
-        indice += 1
-
-    return ruta
-
-
-def guardar_dataframe_en_ini(df, archivo_ini):
-    """
-    Guarda un DataFrame en formato .ini.
-    
-    Args:
-        df (pd.DataFrame): DataFrame a guardar.
-        archivo_ini (str): Ruta del archivo .ini de destino.
-    """
-    config = configparser.ConfigParser()
-    
-    for columna in df.columns:
-        # Crear una sección para cada columna
-        config[columna] = {}
-        for i, valor in enumerate(df[columna]):
-            # Agregar cada fila como un par clave-valor
-            config[columna][f"fila_{i}"] = str(valor)
-    
-    with open(archivo_ini, 'w') as archivo:
-        config.write(archivo)
-    print(f"DataFrame guardado exitosamente en {archivo_ini}")
-def leer_csv_y_crear_dataframe(ruta_csv):
-    """
-    Lee un archivo CSV y lo convierte en un DataFrame de pandas.
-
-    Args:
-        ruta_csv (str): Ruta al archivo CSV.
-
-    Returns:
-        pd.DataFrame: DataFrame creado a partir del CSV.
-    """
-    try:
-        # Leer el archivo CSV
-        df = pd.read_csv(ruta_csv)
-        print("DataFrame creado exitosamente.")
-        return df
-    except FileNotFoundError:
-        print(f"Error: El archivo {ruta_csv} no existe.")
-    except Exception as e:
-        print(f"Error al leer el archivo CSV: {e}")
-
-def crear_ventana_novarep_ide():
-    """Simula la creación de la ventana principal de novarep_ide."""
-    try:
-        print("Recreando ventana novarep_ide...")
-        # Aquí deberías colocar el código para inicializar o mostrar novarep_ide
-        # Por ejemplo: app_novarep = Application(backend="uia").start(path_novarep)
-        # print("Ventana novarep_ide creada.")
-    except Exception as e:
-        print(f"Error al crear la ventana novarep_ide: {e}")
-        raise
-# Inicializar NovaWin
-def inicializar_novawin(novawin_path):
-    try:
-        app = Application(backend="uia").start(novawin_path)
-        time.sleep(5)  # Esperar a que se cargue la ventana principal
-        main_window = app.window(title_re=".*NovaWin.*")
-        return app, main_window
-    except Exception as e:
-        print(f"Error al iniciar NovaWin: {e}")
-        raise
-
-def seleccionar_menu(window, ruta_menu):
-    """Selecciona una opción de menú."""
-    try:
-        window.menu_select(ruta_menu)
-        time.sleep(2)
-    except Exception as e:
-        print(f"Error al seleccionar menú '{ruta_menu}': {e}")
-        raise
-
-def interactuar_con_cuadro_dialogo(dialog, archivo):
-    """Interactúa con el cuadro de diálogo para abrir o guardar archivos."""
-    try:
-        edit_box = dialog.child_window(class_name="Edit")
-        edit_box.set_edit_text(archivo)
-        open_button = dialog.child_window(class_name="Button", found_index=0)
-        open_button.click_input()
-    except Exception as e:
-        print(f"Error al interactuar con el cuadro de diálogo: {e}")
-        raise
+def generar_nombre_unico(ruta_base):
+    base, ext = os.path.splitext(ruta_base)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return f"{base}_{timestamp}{ext}"
 
 def exportar_reporte(main_window, ruta_exportacion, app):
     try:
@@ -125,14 +34,14 @@ def exportar_reporte(main_window, ruta_exportacion, app):
         tables_menu_item.click_input()
         print("Menú 'Tables' seleccionado.")
 
-        bet_menu_item = app.window(best_match="Tables").child_window(title="HK method", control_type="MenuItem")
-        bet_menu_item.click_input()
+        HK_method_menu_item = app.window(best_match="Tables").child_window(title="HK method", control_type="MenuItem")
+        HK_method_menu_item.click_input()
         print("Submenú 'HK method' seleccionado.")
 
-        bet_menu_item = app.window(best_match="HK method")
-        bet_menu_item.print_control_identifiers(depth=2)
-        single_point_menu_item = bet_menu_item.child_window(title=" Pore Size Distribution", control_type="MenuItem")
-        single_point_menu_item.click_input()
+        HK_method_menu_item = app.window(best_match="HK method")
+        HK_method_menu_item.print_control_identifiers(depth=2)
+        Pore_Size_Distribution_menu_item = HK_method_menu_item.child_window(title=" Pore Size Distribution", control_type="MenuItem")
+        Pore_Size_Distribution_menu_item.click_input()
         print("Se seleccionó ' Pore Size Distribution' exitosamente.")
 
         time.sleep(2)
@@ -147,15 +56,22 @@ def exportar_reporte(main_window, ruta_exportacion, app):
         time.sleep(2)
         csv_dialog = app.window(class_name="#32770")
 
-        print("llegó hasta aquí")
+        print("Identificadores de controles de csv_dialog:")
+        csv_dialog.print_control_identifiers()
         edit_box = csv_dialog.child_window(control_type="Edit", found_index=0)
         if edit_box.exists():
             print("Existe el cuadro de texto para la ruta")
-            ruta_exportacion = generar_nombre_unico(ruta_exportacion)
-            edit_box.type_keys(ruta_exportacion, with_spaces=True)
+            # Generar ruta con nombre único
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            ruta_exportacion = os.path.join(
+                ruta_exportacion, f"qps_{timestamp}.csv"
+            )
+            ruta_exportacion = ruta_exportacion.replace("/", "\\")  # Corregir barras
+            #edit_box.set_edit_text("hola")
+            edit_box.type_keys("hola", with_spaces=True)
         else:
             raise Exception("Campo de texto para la ruta no encontrado.")
-
+        print(ruta_exportacion)
         csv_button = csv_dialog.child_window(control_type="Button", title="Guardar") \
             if csv_dialog.child_window(control_type="Button", title="Guardar").exists() \
             else csv_dialog.child_window(control_type="Button", title="Save")
@@ -163,68 +79,64 @@ def exportar_reporte(main_window, ruta_exportacion, app):
         if csv_button.exists():
             print("Existe el botón")
             csv_button.click_input()
-            print("Archivo exportado exitosamente.")
+            print(f"Archivo exportado exitosamente a: {ruta_exportacion}")
         else:
             raise Exception("Botón 'Guardar' no encontrado.")
 
+        # Agregar contenido del CSV al archivo Excel
+        agregar_csv_a_excel(ruta_exportacion, "reporte.xlsx")
 
     except Exception as e:
         print(f"Error durante la exportación: {e}")
         traceback.print_exc()
 
-# Lógica de NovaWin, con exportación que señala el evento
-def manejar_novawin( path_novawin, archivo_qps, path_csv):
+def agregar_csv_a_excel(ruta_csv, ruta_excel):
     try:
+        if not os.path.exists(ruta_excel):
+            # Crear un nuevo archivo de Excel si no existe
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Reporte"
+            wb.save(ruta_excel)
+            print(f"Archivo Excel creado: {ruta_excel}")
 
-        # Iniciar NovaWin
-        app,main_window = inicializar_novawin(path_novawin)
+        # Abrir el archivo de Excel existente
+        wb = openpyxl.load_workbook(ruta_excel)
+        if "Reporte" not in wb.sheetnames:
+            ws = wb.create_sheet(title="Reporte")
+        else:
+            ws = wb["Reporte"]
 
-        # Interactuar con NovaWin para abrir archivo y exportar reporte
-        seleccionar_menu(main_window, "File->Open")
-        dialog = app.window(class_name="#32770")
-        interactuar_con_cuadro_dialogo(dialog, archivo_qps)
+        # Leer el archivo CSV
+        with open(ruta_csv, "r", encoding="utf-8") as file:
+            reader = csv.reader(file)
+            for row in reader:
+                ws.append(row)  # Agregar cada fila al Excel
 
-        # Exportar reporte
-        exportar_reporte(main_window, path_csv, app)
-
-        print(f"Archivo exportado a: {path_csv}")
-        
-        # Intentar cerrar la ventana principal de forma elegante
-        try:
-            main_window.close()
-            print("Ventana principal de NovaWin cerrada exitosamente.")
-        except Exception as e:
-            print(f"No se pudo cerrar la ventana principal de forma elegante: {e}. Intentando forzar el cierre.")
-            app.kill()  # Forzar el cierre del proceso de NovaWin
+        wb.save(ruta_excel)
+        print(f"Reporte guardado exitosamente en: {ruta_excel}")
 
     except Exception as e:
-        print(f"Error al manejar NovaWin: {e}")
+        print(f"Error al agregar datos al archivo Excel: {e}")
         traceback.print_exc()
 
 def hk_main(path_qps, path_csv, path_novawin):
-    print("Hola desde novarep:main")
-    print(path_qps)
+    print("Inicio de hk_main")
     try:
-  
-        # Ejecutar NovaWin en un hilo
-        hilo_novawin = threading.Thread(
-            target=manejar_novawin,
-            args=( path_novawin, path_qps, path_csv)
-        )
-        hilo_novawin.daemon = True
-        hilo_novawin.start()
+        # Inicializar y manejar NovaWin
+        app, main_window = manejar_novawin(path_novawin, path_qps)
 
-        # Opcional: esperar a que todos los hilos terminen
-        hilo_novawin.join()
-        
-        # Crear DataFrame a partir del archivo exportado
+        # Exportar reporte
+        exportar_reporte(main_window, path_csv, app)
+        print(f"Reporte exportado a: {path_csv}")
+
+        # Crear DataFrame y guardar
         dataframe = leer_csv_y_crear_dataframe(path_csv)
-        print(dataframe.head())  # Imprime las primeras filas para verificar
         guardar_dataframe_en_ini(dataframe, "dataframe.ini")
-        # Cerrar NovaWin
-        dataframe.to_excel("reporte.xlsx", index=False, engine='openpyxl')
-        
-        subprocess.run(["python", "novarep_ide.py"])
-    except Exception as general_error:
-        print(f"Se produjo un error: {general_error}")
+        dataframe.to_excel("reporte.xlsx", index=False, engine="openpyxl")
+
+        print("Proceso completado exitosamente.")
+
+    except Exception as e:
+        print(f"Error en hk_main: {e}")
         traceback.print_exc()

@@ -1,108 +1,26 @@
 from pywinauto import Application, findwindows
 import time
-from datetime import datetime
 import os
 import traceback
-import threading
-import subprocess
-import pandas as pd
-import configparser
-def generar_nombre_unico(ruta):
-    """
-    Genera un nombre único para el archivo añadiendo un índice si ya existe un archivo con el mismo nombre.
-    """
-    directorio, nombre_archivo = os.path.split(ruta)
-    nombre, extension = os.path.splitext(nombre_archivo)
-    indice = 1
-
-    while os.path.exists(ruta):
-        ruta = os.path.join(directorio, f"{nombre}_{indice}{extension}")
-        indice += 1
-
-    return ruta
-
-
-def guardar_dataframe_en_ini(df, archivo_ini):
-    """
-    Guarda un DataFrame en formato .ini.
+from novawinmng import manejar_novawin, leer_csv_y_crear_dataframe, guardar_dataframe_en_ini
+def generar_nombre_unico(ruta_exportacion):
+    # Obtener el directorio, el nombre base y la extensión
+    directorio, nombre_archivo = os.path.split(ruta_exportacion)
+    base, extension = os.path.splitext(nombre_archivo)
     
-    Args:
-        df (pd.DataFrame): DataFrame a guardar.
-        archivo_ini (str): Ruta del archivo .ini de destino.
-    """
-    config = configparser.ConfigParser()
+    # Agregar prefijo "hk_" al nombre del archivo si no lo tiene
+    if not base.startswith("bjhd_"):
+        base = f"hk_{base}"
     
-    for columna in df.columns:
-        # Crear una sección para cada columna
-        config[columna] = {}
-        for i, valor in enumerate(df[columna]):
-            # Agregar cada fila como un par clave-valor
-            config[columna][f"fila_{i}"] = str(valor)
+    ruta_exportacion = os.path.join(directorio, f"{base}{extension}")
+
+    # Generar un nombre único si el archivo ya existe
+    contador = 1
+    while os.path.exists(ruta_exportacion):
+        ruta_exportacion = os.path.join(directorio, f"{base}_{contador}{extension}")
+        contador += 1
     
-    with open(archivo_ini, 'w') as archivo:
-        config.write(archivo)
-    print(f"DataFrame guardado exitosamente en {archivo_ini}")
-def leer_csv_y_crear_dataframe(ruta_csv):
-    """
-    Lee un archivo CSV y lo convierte en un DataFrame de pandas.
-
-    Args:
-        ruta_csv (str): Ruta al archivo CSV.
-
-    Returns:
-        pd.DataFrame: DataFrame creado a partir del CSV.
-    """
-    try:
-        # Leer el archivo CSV
-        df = pd.read_csv(ruta_csv)
-        print("DataFrame creado exitosamente.")
-        return df
-    except FileNotFoundError:
-        print(f"Error: El archivo {ruta_csv} no existe.")
-    except Exception as e:
-        print(f"Error al leer el archivo CSV: {e}")
-
-def crear_ventana_novarep_ide():
-    """Simula la creación de la ventana principal de novarep_ide."""
-    try:
-        print("Recreando ventana novarep_ide...")
-        # Aquí deberías colocar el código para inicializar o mostrar novarep_ide
-        # Por ejemplo: app_novarep = Application(backend="uia").start(path_novarep)
-        # print("Ventana novarep_ide creada.")
-    except Exception as e:
-        print(f"Error al crear la ventana novarep_ide: {e}")
-        raise
-# Inicializar NovaWin
-def inicializar_novawin(novawin_path):
-    try:
-        app = Application(backend="uia").start(novawin_path)
-        time.sleep(5)  # Esperar a que se cargue la ventana principal
-        main_window = app.window(title_re=".*NovaWin.*")
-        return app, main_window
-    except Exception as e:
-        print(f"Error al iniciar NovaWin: {e}")
-        raise
-
-def seleccionar_menu(window, ruta_menu):
-    """Selecciona una opción de menú."""
-    try:
-        window.menu_select(ruta_menu)
-        time.sleep(2)
-    except Exception as e:
-        print(f"Error al seleccionar menú '{ruta_menu}': {e}")
-        raise
-
-def interactuar_con_cuadro_dialogo(dialog, archivo):
-    """Interactúa con el cuadro de diálogo para abrir o guardar archivos."""
-    try:
-        edit_box = dialog.child_window(class_name="Edit")
-        edit_box.set_edit_text(archivo)
-        open_button = dialog.child_window(class_name="Button", found_index=0)
-        open_button.click_input()
-    except Exception as e:
-        print(f"Error al interactuar con el cuadro de diálogo: {e}")
-        raise
-
+    return ruta_exportacion
 def exportar_reporte(main_window, ruta_exportacion, app):
     try:
         # Imprimir detalles de los controles y ventanas hijas de main_window
@@ -119,21 +37,21 @@ def exportar_reporte(main_window, ruta_exportacion, app):
             time.sleep(1)
         else:
             print("No se encontró el componente 'TGraphViewWindow'.")
-
+       
         context_menu = app.window(title_re=".*Context.*")
         tables_menu_item = context_menu.child_window(title="Tables", control_type="MenuItem")
         tables_menu_item.click_input()
         print("Menú 'Tables' seleccionado.")
 
-        bet_menu_item = app.window(best_match="Tables").child_window(title="BJH Pore Size Distribution", control_type="MenuItem")
-        bet_menu_item.click_input()
+        BJHD_menu_item = app.window(best_match="Tables").child_window(title="BJH Pore Size Distribution", control_type="MenuItem")
+        BJHD_menu_item.click_input()
         print("Submenú 'BJH Pore Size Distribution' seleccionado.")
 
-        bet_menu_item = app.window(best_match="Desorption")
-        bet_menu_item.print_control_identifiers(depth=2)
-        single_point_menu_item = bet_menu_item.child_window(title="Desorption", control_type="MenuItem")
-        single_point_menu_item.click_input()
-        print("Se seleccionó 'Desorption' exitosamente.")
+        BJHD_menu_item = app.window(best_match="BJH Pore Size Distribution")
+        BJHD_menu_item.print_control_identifiers(depth=2)
+        Desorption_menu_item = BJHD_menu_item.child_window(title=" Desorption ", control_type="MenuItem")
+        sDesorption_menu_item.click_input()
+        print("Se seleccionó ' Desorption' exitosamente.")
 
         time.sleep(2)
         secondary_window2 = app.window(title_re=f".*tab: Desorption: file_to_open_nameonly.*")
@@ -147,7 +65,7 @@ def exportar_reporte(main_window, ruta_exportacion, app):
         time.sleep(2)
         csv_dialog = app.window(class_name="#32770")
 
-        print("llegó hasta aquí")
+     
         edit_box = csv_dialog.child_window(control_type="Edit", found_index=0)
         if edit_box.exists():
             print("Existe el cuadro de texto para la ruta")
@@ -172,59 +90,24 @@ def exportar_reporte(main_window, ruta_exportacion, app):
         print(f"Error durante la exportación: {e}")
         traceback.print_exc()
 
-# Lógica de NovaWin, con exportación que señala el evento
-def manejar_novawin( path_novawin, archivo_qps, path_csv):
+def bjhd_main(path_qps, path_csv, path_novawin):
+    print("Inicio de bjhd_main")
     try:
-
-        # Iniciar NovaWin
-        app,main_window = inicializar_novawin(path_novawin)
-
-        # Interactuar con NovaWin para abrir archivo y exportar reporte
-        seleccionar_menu(main_window, "File->Open")
-        dialog = app.window(class_name="#32770")
-        interactuar_con_cuadro_dialogo(dialog, archivo_qps)
+        # Inicializar y manejar NovaWin
+        app, main_window = manejar_novawin(path_novawin, path_qps)
 
         # Exportar reporte
         exportar_reporte(main_window, path_csv, app)
+        print(f"Reporte exportado a: {path_csv}")
 
-        print(f"Archivo exportado a: {path_csv}")
-        
-        # Intentar cerrar la ventana principal de forma elegante
-        try:
-            main_window.close()
-            print("Ventana principal de NovaWin cerrada exitosamente.")
-        except Exception as e:
-            print(f"No se pudo cerrar la ventana principal de forma elegante: {e}. Intentando forzar el cierre.")
-            app.kill()  # Forzar el cierre del proceso de NovaWin
+        # Crear DataFrame y guardar
+        dataframe = leer_csv_y_crear_dataframe(path_csv)
+        guardar_dataframe_en_ini(dataframe, "dataframe.ini")
+        dataframe.to_excel("reporte.xlsx", index=False, engine="openpyxl")
+
+        print("Proceso completado exitosamente.")
 
     except Exception as e:
-        print(f"Error al manejar NovaWin: {e}")
+        print(f"Error en dft_main: {e}")
         traceback.print_exc()
 
-def bjhd_main(path_qps, path_csv, path_novawin):
-    print("Hola desde novarep:main")
-    print(path_qps)
-    try:
-  
-        # Ejecutar NovaWin en un hilo
-        hilo_novawin = threading.Thread(
-            target=manejar_novawin,
-            args=( path_novawin, path_qps, path_csv)
-        )
-        hilo_novawin.daemon = True
-        hilo_novawin.start()
-
-        # Opcional: esperar a que todos los hilos terminen
-        hilo_novawin.join()
-        
-        # Crear DataFrame a partir del archivo exportado
-        dataframe = leer_csv_y_crear_dataframe(path_csv)
-        print(dataframe.head())  # Imprime las primeras filas para verificar
-        guardar_dataframe_en_ini(dataframe, "dataframe.ini")
-        # Cerrar NovaWin
-        dataframe.to_excel("reporte.xlsx", index=False, engine='openpyxl')
-        
-        subprocess.run(["python", "novarep_ide.py"])
-    except Exception as general_error:
-        print(f"Se produjo un error: {general_error}")
-        traceback.print_exc()
