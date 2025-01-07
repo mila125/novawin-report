@@ -4,7 +4,7 @@ import os
 import traceback
 import pandas as pd
 import configparser
-
+import openpyxl
 def manejar_novawin(path_novawin, archivo_qps):
     try:
         # Invertir las barras en la ruta del archivo
@@ -79,16 +79,65 @@ def exportar_reporte(main_window, path_csv, app):
         traceback.print_exc()
         raise
 
+
 def leer_csv_y_crear_dataframe(ruta_csv):
+    if not os.path.exists(ruta_csv):
+        print(f"Archivo CSV no encontrado: {ruta_csv}")
+        raise FileNotFoundError(f"Archivo no encontrado: {ruta_csv}")
+
     try:
         return pd.read_csv(ruta_csv)
-    except FileNotFoundError:
-        print(f"Archivo CSV no encontrado: {ruta_csv}")
-        raise
     except Exception as e:
         print(f"Error al leer CSV: {e}")
         raise
+def agregar_csv_a_plantilla_excel(ruta_csv, ruta_excel):
+    """
+    Agrega el contenido de un CSV a una plantilla Excel (`Reporte.xlsx`).
+    Los datos se escriben en las columnas vacías sin borrar el contenido existente.
+    """
+    try:
+        # Leer el contenido del CSV
+        df_csv = leer_csv_y_crear_dataframe(ruta_csv)
 
+        # Crear archivo Excel si no existe
+        if not os.path.exists(ruta_excel):
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Reporte"
+            wb.save(ruta_excel)
+            print(f"Archivo Excel creado: {ruta_excel}")
+
+        # Abrir el archivo Excel
+        wb = openpyxl.load_workbook(ruta_excel)
+        if "Reporte" not in wb.sheetnames:
+            ws = wb.create_sheet(title="Reporte")
+        else:
+            ws = wb["Reporte"]
+
+        # Obtener la fila y columna inicial para insertar los datos
+        max_row = ws.max_row
+        max_col = ws.max_column
+
+        # Determinar la columna vacía para comenzar a escribir
+        start_col = max_col + 1 if max_row > 1 else 1
+
+        # Escribir encabezados si es la primera inserción
+        if start_col == 1:
+            for col, header in enumerate(df_csv.columns, start=start_col):
+                ws.cell(row=1, column=col).value = header
+
+        # Insertar datos en columnas vacías
+        for i, row in enumerate(df_csv.itertuples(index=False), start=2):
+            for j, value in enumerate(row, start=start_col):
+                ws.cell(row=i, column=j).value = value
+
+        # Guardar cambios en el archivo Excel
+        wb.save(ruta_excel)
+        print(f"Datos del CSV agregados exitosamente a: {ruta_excel}")
+
+    except Exception as e:
+        print(f"Error al agregar datos del CSV a la plantilla Excel: {e}")
+        raise
 def guardar_dataframe_en_ini(df, archivo_ini):
     try:
         config = configparser.ConfigParser()

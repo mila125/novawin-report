@@ -5,13 +5,24 @@ import traceback
 from datetime import datetime
 from pywinauto import Application, findwindows
 import time
-from novawinmng import manejar_novawin, leer_csv_y_crear_dataframe, guardar_dataframe_en_ini
+from novawinmng import manejar_novawin, leer_csv_y_crear_dataframe,agregar_csv_a_plantilla_excel, guardar_dataframe_en_ini
+from pywinauto.keyboard import send_keys
 
-def generar_nombre_unico(ruta_base):
-    base, ext = os.path.splitext(ruta_base)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return f"{base}_{timestamp}{ext}"
-
+def generar_nombre_unico(base_path):
+    # Normalizar las barras a formato Unix (/)
+    base_path = base_path.replace("\\", "/")
+    
+    if not base_path.endswith("hk.csv"):
+        base_path += "hk.csv"
+    
+    counter = 1
+    while os.path.exists(base_path):
+        name, ext = os.path.splitext(base_path)
+        base_path = f"{name}_{counter}{ext}"
+        counter += 1
+    
+    # Normalizar las barras de regreso a formato Windows (\)
+    return base_path.replace("/", "\\")
 def exportar_reporte(main_window, ruta_exportacion, app):
     try:
         # Imprimir detalles de los controles y ventanas hijas de main_window
@@ -45,7 +56,7 @@ def exportar_reporte(main_window, ruta_exportacion, app):
         print("Se seleccionó ' Pore Size Distribution' exitosamente.")
 
         time.sleep(2)
-        secondary_window2 = app.window(title_re=f".*tab: Pore Size Distribution: file_to_open_nameonly.*")
+        secondary_window2 = app.window(title_re=f".*tab:Pore Size Distribution: file_to_open_nameonly.*")
         main_window.right_click_input()
         time.sleep(1)
 
@@ -56,22 +67,22 @@ def exportar_reporte(main_window, ruta_exportacion, app):
         time.sleep(2)
         csv_dialog = app.window(class_name="#32770")
 
-        print("Identificadores de controles de csv_dialog:")
-        csv_dialog.print_control_identifiers()
+        print("llegó hasta aquí")
+        ruta_exportacion = generar_nombre_unico(ruta_exportacion)
+        
+         # Enfocar el cuadro de texto con Alt + M
+        send_keys('%m')  # % representa la tecla Alt en pywinauto
+        time.sleep(2)
+        send_keys(ruta_exportacion)  # % representa la tecla Alt en pywinauto
+        # Esperar hasta que el cuadro de texto esté enfocado
         edit_box = csv_dialog.child_window(control_type="Edit", found_index=0)
-        if edit_box.exists():
-            print("Existe el cuadro de texto para la ruta")
-            # Generar ruta con nombre único
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            ruta_exportacion = os.path.join(
-                ruta_exportacion, f"qps_{timestamp}.csv"
-            )
-            ruta_exportacion = ruta_exportacion.replace("/", "\\")  # Corregir barras
-            #edit_box.set_edit_text("hola")
-            edit_box.type_keys("hola", with_spaces=True)
+        if edit_box.exists(timeout=5):
+           print("Existe el cuadro de texto para la ruta")
+           
+           edit_box.type_keys("hola", with_spaces=True)
         else:
-            raise Exception("Campo de texto para la ruta no encontrado.")
-        print(ruta_exportacion)
+           raise Exception("Campo de texto para la ruta no encontrado.")
+
         csv_button = csv_dialog.child_window(control_type="Button", title="Guardar") \
             if csv_dialog.child_window(control_type="Button", title="Guardar").exists() \
             else csv_dialog.child_window(control_type="Button", title="Save")
@@ -79,12 +90,10 @@ def exportar_reporte(main_window, ruta_exportacion, app):
         if csv_button.exists():
             print("Existe el botón")
             csv_button.click_input()
-            print(f"Archivo exportado exitosamente a: {ruta_exportacion}")
+            print("Archivo exportado exitosamente.")
+            return ruta_exportacion
         else:
             raise Exception("Botón 'Guardar' no encontrado.")
-
-        # Agregar contenido del CSV al archivo Excel
-        agregar_csv_a_excel(ruta_exportacion, "reporte.xlsx")
 
     except Exception as e:
         print(f"Error durante la exportación: {e}")
@@ -127,13 +136,17 @@ def hk_main(path_qps, path_csv, path_novawin):
         app, main_window = manejar_novawin(path_novawin, path_qps)
 
         # Exportar reporte
-        exportar_reporte(main_window, path_csv, app)
-        print(f"Reporte exportado a: {path_csv}")
-
+        ruta_csv=exportar_reporte(main_window, path_csv, app)
+        if not os.path.exists(ruta_csv):
+            raise FileNotFoundError(f"Archivo exportado no encontrado en: {ruta_csv}")
+        print(f"Archivo exportado exitosamente en: {ruta_csv}")
         # Crear DataFrame y guardar
-        dataframe = leer_csv_y_crear_dataframe(path_csv)
-        guardar_dataframe_en_ini(dataframe, "dataframe.ini")
-        dataframe.to_excel("reporte.xlsx", index=False, engine="openpyxl")
+        dataframe = leer_csv_y_crear_dataframe(ruta_csv)
+        print(dataframe)
+        agregar_csv_a_plantilla_excel(ruta_csv, path_csv)
+        guardar_dataframe_en_ini(dataframe, path_csv+"dataframe.ini")
+    
+        #dataframe.to_excel("reporte.xlsx", index=False, engine="openpyxl")
 
         print("Proceso completado exitosamente.")
 
