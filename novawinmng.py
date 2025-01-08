@@ -79,7 +79,6 @@ def exportar_reporte(main_window, path_csv, app):
         traceback.print_exc()
         raise
 
-
 def leer_csv_y_crear_dataframe(ruta_csv):
     if not os.path.exists(ruta_csv):
         print(f"Archivo CSV no encontrado: {ruta_csv}")
@@ -90,17 +89,21 @@ def leer_csv_y_crear_dataframe(ruta_csv):
     except Exception as e:
         print(f"Error al leer CSV: {e}")
         raise
-def agregar_csv_a_plantilla_excel(ruta_csv, ruta_excel):
+def agregar_csv_a_plantilla_excel(ruta_csv, ruta_excel,df_csv):
     """
     Agrega el contenido de un CSV a una plantilla Excel (`Reporte.xlsx`).
     Los datos se escriben en las columnas vacías sin borrar el contenido existente.
     """
     try:
-        # Leer el contenido del CSV
-        df_csv = leer_csv_y_crear_dataframe(ruta_csv)
-
-        # Crear archivo Excel si no existe
-        if not os.path.exists(ruta_excel):
+        # Invertir las barras en la ruta del archivo
+        ruta_excel = ruta_excel.replace("/", "\\")  # Reemplazar barras normales por barras invertidas
+        
+        # O usar normpath para normalizar la ruta según el sistema operativo
+        ruta_excel = os.path.normpath(ruta_excel)
+        ruta_excel = os.path.join(ruta_excel, "Report.xlsx")
+        print(ruta_excel)
+        # Crear archivo Excel si no existe o si el archivo no tiene formato válido
+        if not os.path.exists(ruta_excel) or not ruta_excel.endswith(('.xlsx', '.xlsm', '.xltx', '.xltm')):
             wb = openpyxl.Workbook()
             ws = wb.active
             ws.title = "Reporte"
