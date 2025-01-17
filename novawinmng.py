@@ -5,6 +5,114 @@ import traceback
 import pandas as pd
 import configparser
 import openpyxl
+def agregar_dataframe_a_nueva_hoja(archivo_planilla, nombre_hoja, dataframe):
+    """
+    Agrega un DataFrame a una nueva hoja en un archivo Excel.
+    Si el archivo Excel no existe, se crea.
+    Si el nombre de la hoja ya existe, lanza un error.
+    
+    :param archivo_planilla: Ruta del archivo Excel.
+    :param nombre_hoja: Nombre de la nueva hoja.
+    :param dataframe: DataFrame que se agregará.
+    """
+    try:
+        # Normalizar ruta según el sistema operativo
+        #archivo_planilla = os.path.normpath(archivo_planilla)
+        #archivo_planilla = os.path.join(archivo_planilla, "Report.xlsx")
+        # Verificar si el archivo Excel existe
+        if not os.path.exists(archivo_planilla):
+            # Crear un nuevo archivo Excel con la hoja especificada
+            with pd.ExcelWriter(archivo_planilla, engine='openpyxl') as writer:
+                dataframe.to_excel(writer, sheet_name=nombre_hoja, index=False)
+            print(f"Archivo Excel creado con la hoja '{nombre_hoja}': {archivo_planilla}")
+        else:
+            # Abrir el archivo Excel existente
+            with pd.ExcelWriter(archivo_planilla, engine='openpyxl', mode='a') as writer:
+                # Verificar si la hoja ya existe
+                if nombre_hoja in writer.book.sheetnames:
+                    raise ValueError(f"La hoja '{nombre_hoja}' ya existe en el archivo Excel.")
+                # Agregar el DataFrame a la nueva hoja
+                dataframe.to_excel(writer, sheet_name=nombre_hoja, index=False)
+            print(f"Datos agregados exitosamente a la nueva hoja '{nombre_hoja}' en: {archivo_planilla}")
+    except Exception as e:
+        print(f"Error al agregar el DataFrame a la nueva hoja: {e}")
+        raise
+def agregar_dataframe_a_excel_sin_borrar(ruta_excel, nuevo_dataframe):
+    """
+    Agrega un DataFrame a un archivo Excel sin borrar los datos existentes.
+    Si el archivo Excel no existe, se crea uno nuevo con los datos del DataFrame.
+    """
+    try:
+        # Invertir las barras en la ruta del archivo
+        ruta_excel = ruta_excel.replace("/", "\\")  # Reemplazar barras normales por barras invertidas
+        
+        # O usar normpath para normalizar la ruta según el sistema operativo
+        ruta_excel = os.path.normpath(ruta_excel)
+        ruta_excel = os.path.join(ruta_excel, "Report.xlsx")
+        print(ruta_excel)
+        # Verificar si el archivo Excel existe
+        if not os.path.exists(ruta_excel):
+            # Si no existe, crear un archivo Excel nuevo con el DataFrame
+            nuevo_dataframe.to_excel(ruta_excel, index=False)
+            print(f"Archivo Excel creado: {ruta_excel}")
+        else:
+            # Si existe, cargar el archivo Excel
+            with pd.ExcelFile(ruta_excel) as xl:
+                # Leer todas las hojas existentes en el archivo
+                hojas = xl.sheet_names
+                
+                # Si "Reporte" no existe, agregarla
+                if "Reporte" not in hojas:
+                    with pd.ExcelWriter(ruta_excel, engine='openpyxl', mode='a') as writer:
+                        nuevo_dataframe.to_excel(writer, sheet_name="Reporte", index=False)
+                    print(f"Hoja 'Reporte' creada con los nuevos datos en: {ruta_excel}")
+                else:
+                    # Si "Reporte" ya existe, obtenerla y agregar datos sin borrar
+                    with pd.ExcelWriter(ruta_excel, engine='openpyxl', mode='a') as writer:
+                        # Cargar el libro Excel existente
+                        wb = openpyxl.load_workbook(ruta_excel)
+                        ws = wb["Reporte"]
+                        
+                        # Encontrar la fila donde agregar nuevos datos (sin sobrescribir)
+                        start_row = ws.max_row + 1
+                        
+                        # Insertar el DataFrame en las filas siguientes
+                        for i, row in nuevo_dataframe.iterrows():
+                            for j, value in enumerate(row):
+                                ws.cell(row=start_row + i, column=j+1, value=value)
+                        
+                        wb.save(ruta_excel)
+                        print(f"Datos agregados exitosamente a la hoja 'Reporte' en: {ruta_excel}")
+    except Exception as e:
+        print(f"Error al agregar el DataFrame a Excel: {e}")
+        raise
+import os
+from datetime import datetime
+
+def generar_nombre_unico(base_path, namext):
+    # Normalizar las barras a formato Unix (/)
+    base_path = base_path.replace("\\", "/")
+    
+    if not base_path.endswith(namext):
+        base_path += namext
+
+    # Extraer nombre base y extensión
+    name, ext = os.path.splitext(base_path)
+    
+    # Agregar fecha y hora actual al nombre base
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    name_with_timestamp = f"{name}_{timestamp}"
+    base_path = f"{name_with_timestamp}{ext}"
+    
+    # Asegurarse de que el nombre sea único
+    counter = 1
+    while os.path.exists(base_path):
+        base_path = f"{name_with_timestamp}_{counter}{ext}"
+        counter += 1
+    
+    # Normalizar las barras de regreso a formato Windows (\)
+    return base_path.replace("/", "\\")
+    
 def manejar_novawin(path_novawin, archivo_qps):
     try:
         # Invertir las barras en la ruta del archivo
@@ -54,29 +162,6 @@ def interactuar_con_cuadro_dialogo(dialog, archivo):
         open_button.click_input()
     except Exception as e:
         print(f"Error al interactuar con el cuadro de diálogo: {e}")
-        raise
-
-def exportar_reporte(main_window, path_csv, app):
-    try:
-        # Buscar ventana de contexto y realizar exportación
-        main_window.right_click_input()
-        time.sleep(1)
-
-        context_menu = app.window(title_re=".*Context.*")
-        savecsv_menu_item = context_menu.child_window(title="Export to .CSV", control_type="MenuItem")
-        savecsv_menu_item.click_input()
-
-        time.sleep(2)
-        csv_dialog = app.window(class_name="#32770")
-        edit_box = csv_dialog.child_window(control_type="Edit", found_index=0)
-        edit_box.set_edit_text(path_csv)
-        save_button = csv_dialog.child_window(title="Guardar", control_type="Button")
-        save_button.click_input()
-
-        print("Archivo exportado exitosamente.")
-    except Exception as e:
-        print(f"Error durante la exportación: {e}")
-        traceback.print_exc()
         raise
 
 def leer_csv_y_crear_dataframe(ruta_csv):
@@ -152,3 +237,15 @@ def guardar_dataframe_en_ini(df, archivo_ini):
     except Exception as e:
         print(f"Error al guardar INI: {e}")
         raise
+def close_window_novawin():
+    try:
+        # Conectar a la ventana de NovaWin
+        app = Application(backend='uia').connect(title_re='.*NovaWin.*')
+        window = app.window(title_re='.*NovaWin.*')
+        # Cerrar la ventana
+        window.close()
+        print("La ventana de NovaWin ha sido cerrada.")
+    except Exception as e:
+        print(f"Error al cerrar la ventana de NovaWin: {e}")
+def ejecutar_ide():
+    subprocess.run(["python", "-m", "novarep_ide"])
